@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	
+	<title>solar map</title>
+
+
+	<link rel="stylesheet" href="leaflet.css" />
+	<script src="leaflet.js"></script>
+    <script src="routes.json" type="text/javascript"></script>
+    <script src="villes.json" type="text/javascript"></script>
+    <script src="PV.json" type="text/javascript"></script>
+
+
+
+
+
+	<style>
+		#map {
+			width: 1400px;
+			height: 600px;
+		}
+		.my-label {
+              background: rgba(0, 0, 0, 0) !important;
+              border: none !important;
+              font-size: 11px; 
+              text-shadow: 1px 1px 1px whitesmoke;
+              box-shadow: none !important;
+        }
+        .leaflet-tooltip-top:before, 
+        .leaflet-tooltip-bottom:before, 
+        .leaflet-tooltip-left:before, 
+        .leaflet-tooltip-right:before {
+              border: none !important;
+        }
+        
+        
+        .leaflet-control-layers-toggle {
+       	  background-color: gray;
+        }
+        
+        .leaflet-control-layers-expanded {
+          color: whitesmoke;
+     	  background-color: gray;
+
+        }
+        .leaflet-popup-content-wrapper {
+          padding: 2px;
+          text-align: center;
+          background-color: gray; !important;
+          font-size: 10px;
+          color: whitesmoke;
+          opacity: 0.8;
+
+        }
+        .leaflet-popup-tip {
+          background-color: gray;
+          opacity: 0.8;
+        }
+            
+        .info {
+           padding: 6px 8px;
+           font: 14px/16px Arial, Helvetica, sans-serif;
+           background: white;
+           background: rgba(255,255,255,0.8);
+           box-shadow: 0 0 15px rgba(0,0,0,0.2);
+           border-radius: 5px;
+        }
+        .info h4 {
+           margin: 0 0 5px;
+           color: #777;
+        }
+        .legend {
+           line-height: 18px;
+           color: #555;
+        }
+        .legend i {
+           width: 18px;
+           height: 18px;
+           float: left;
+           margin-right: 8px;
+           opacity: 0.7;
+        }
+
+        
+        
+
+        
+
+
+	</style>
+
+	
+</head>
+<body>
+
+<div id='map' ></div>
+<script src="js/jquery-3.2.1.min.js"></script>
+
+
+    <!-- ALL PLUGINS -->
+<script src="js/jquery.superslides.min.js"></script>
+<script src="js/custom.js"></script>
+<script src="https://unpkg.com/esri-leaflet@3.0.4/dist/esri-leaflet.js"></script>
+<script src="https://unpkg.com/esri-leaflet-vector@3.0.0/dist/esri-leaflet-vector.js"></script>
+
+
+<script>
+    
+    
+
+   
+// base layer: open street map
+    
+	var map = L.map('map').setView([29.141208, -9.402285], 5);
+
+
+
+
+	 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+	    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+     }).addTo(map);
+
+// style des routes
+    
+	var sroutes = {
+            color: "#17B4CA",
+            weight: 1,
+            opacity: 0.6
+    };
+	var routes = L.geoJSON(mesroutes, {  
+		style : sroutes		
+	});
+
+
+// style des villes
+
+    var svilles = {
+         radius: 2,
+         fillColor: 'black',
+         color: 'white',
+         weight: 1,
+         opacity: 0.7,
+         fillOpacity: 1
+    };
+    
+    
+	var villes = L.geoJSON(villesma, {
+		
+		pointToLayer: function (feature, latlng) {
+                              return L.circleMarker(latlng, svilles)
+                              .bindTooltip(feature.properties.NOM,{direction: "center", permanent: true, className: "my-label", offset: [10,10], opacity: 1});
+        }
+	});
+
+    
+    
+    
+
+	
+
+    var overlayMaps = {
+        "Routes": routes,
+        "Villes": villes,
+    };
+	
+
+
+    var layerControll = L.control.layers(null, overlayMaps, { position: 'bottomleft' }).addTo(map);
+    map.on('zoomend', function(e){
+        var zoomLevel = map.getZoom();
+        if (zoomLevel < 6 ){
+             [].forEach.call(document.querySelectorAll('.leaflet-tooltip'), function (el) {
+              el.style.visibility = 'hidden';
+
+             });
+        }else{
+             [].forEach.call(document.querySelectorAll('.leaflet-tooltip'), function (el) {
+              el.style.visibility = 'visible';
+
+             });
+        }
+    });
+
+    L.Control.QueryControl = L.Control.extend({
+            onAdd: function (map) {
+                                    // Array of query where clauses
+                const whereClauses = [
+                    "Afficher les régions dont :",
+                    "PV < 1700",
+                    "PV > 1700 and PV < 1850",
+                    "PV > 1850"                    
+                ];
+                                    
+                                    // Create select
+                const select = L.DomUtil.create("select", "");
+                select.setAttribute("id", "whereClauseSelect");
+                select.setAttribute("style", "font-size: 16px;padding:4px 8px;");
+                whereClauses.forEach(function (whereClause) {
+                    let option = L.DomUtil.create("option");
+                    option.innerHTML = whereClause;
+                    select.appendChild(option);
+                });
+                return select;
+            },
+                          
+            onRemove: function (map) {
+                                    // Nothing to do here
+            }
+    });
+    L.control.queryControl = function (opts) {
+        return new L.Control.QueryControl(opts);
+    };
+
+    L.control
+        .queryControl({
+             position: "topleft"
+        })
+        .addTo(map);
+    //Setup the Popup
+    const PV = L.esri 
+        .featureLayer({
+            url: "https://services7.arcgis.com/uJ66mK35fi9kE8o4/arcgis/rest/services/pv/FeatureServer/0",
+            style: function (feature) {
+                                      // https://leafletjs.com/reference-1.7.1.html#path-option
+                                      return {
+                                        opacity: 1.0,
+                                        weight: 0.5,
+                                        color: "red",
+                                        fillColor: "white",
+                                        fillOpacity: 0.5
+                                      };
+                                    }
+            
+        })
+        .addTo(map);
+    PV.bindPopup(function (layer) {
+     return L.Util.template("<b>Région : {Nom_Region}</b>" + " </br> PV en kWh/kWp/an  : {PV}", layer.feature.properties);
+    });
+                          
+                                // When the selected where clause changes, set the filter on the layer
+    const select = document.getElementById("whereClauseSelect");
+    select.addEventListener("change", () => {
+        if (select.value !== "") {
+             PV.setWhere(select.value);
+        }
+    });
+
+
+</script>
+
+
+
+</body>
+</html>
